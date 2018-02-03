@@ -19,6 +19,12 @@
  *
  *             The rain gauge is a self-emptying tipping bucket type. Each
  *             0.011” (0.2794 mm) of rain causes one momentary contact closure.
+ *             
+ *             If stored as 1000ths of inches it appears uint16 size integers will be fine...
+ *             Most in one minute: 1.5 in (Barot, Guadeloupe, 26 November 1970)
+ * 			   Most in one hour: 12.0 in 42 minutes. Holt, Missouri, 22 June 1947.
+ * 			   Most in 12 hours (1/2 day): 1,144 mm (45.0 in); Cilaos, Réunion, 8 January 1966, during Tropical Cyclone Denise.[82]
+ * 			   Most in 24 hours (1 day): 1,825 mm (71.9 in); Cilaos, Réunion, 7–8 January 1966, during Tropical Cyclone Denise.[82]
  *
  *             <b>Wind Vane</b>
  *
@@ -98,20 +104,27 @@ class WSA80422 {
 public:
 	WSA80422();
 	bool init ( uint8_t rain_pin, uint8_t wspd_pin, uint8_t wdir_pin );
+	bool init_light_sensor( uint8_t light_pin, uint8_t ref_pin );
 	WINDDIR_T getWindDir();
 	uint16_t getWindDirRaw();
 	uint16_t getWindAcc();
 	void resetWindAcc( void );
 	uint16_t getRainFall( void );
 	void resetRainFallAcc( void );
+	void rain_calcs_per_minute( void );
 	void rainIRQ_CB( void );
 	void windIRQ_CB( void );
 	void wind_reset_arrays( void );
-	void wind_calcs( void );
+	void wind_calcs_per_second( void );
 	void get_last_a5s_wind( int16_t *x, int16_t *y, uint32_t *spd);
 	void get_a2m_wind( int16_t *x, int16_t *y, uint32_t *spd);
+	void get_last_a1hr_24hr_rain( uint16_t *rain_1hr, uint16_t *rain_day );
+	void get_last_a1m_rain( uint16_t *rain );
+	float get_light_level( void );
 private:
 	uint16_t rain_fall_acc;
+	uint16_t acc_rain_1m[60];
+	uint16_t acc_rain_1hr[24];
 	uint16_t wind_count;
 	uint8_t winddir_pin;
 	uint32_t time_of_last_wind_read;
@@ -126,5 +139,9 @@ private:
 	uint32_t w_spd_2m[24];
 	uint8_t idx5s;
 	uint8_t idx2m;
+	uint8_t rf_idx1m;
+	uint8_t rf_idx1hr;
+	uint8_t LIGHT_PIN;
+	uint8_t REF_3V3_PIN;
 };
 #endif

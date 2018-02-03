@@ -182,8 +182,9 @@ void setup() {
     pinMode(STAT1_PIN, OUTPUT); //Status LED Blue
 	pinMode(STAT2_PIN, OUTPUT); //Status LED Green
 
-	pinMode(REF_3V3_PIN, INPUT);
-	pinMode(LIGHT_PIN, INPUT);
+	wStation.init_light_sensor(LIGHT_PIN, REF_3V3_PIN);
+	//pinMode(REF_3V3_PIN, INPUT);
+	//pinMode(LIGHT_PIN, INPUT);
 
 	timer_reset(&timer_1s_millis);
 	timer_reset(&timer_5s_millis);
@@ -198,15 +199,7 @@ void setup() {
 //This allows us to ignore what VCC might be (an Arduino plugged into USB has VCC of 4.5 to 5.2V)
 float get_light_level()
 {
-	float operatingVoltage = analogRead(REF_3V3_PIN);
-
-	float lightSensor = analogRead(LIGHT_PIN);
-
-	operatingVoltage = 3.3 / operatingVoltage; //The reference voltage is 3.3V
-
-	lightSensor = operatingVoltage * lightSensor;
-
-	return(lightSensor);
+	return wStation.get_light_level();
 }
 
 void test_MPL3115A2( void ) {
@@ -260,14 +253,31 @@ void print_wind_data( void ) {
 	Serial.println(spd);
 }
 
+void print_rain_data( void ) {
+	uint16_t r_min, r_hr, r_day;
+	wStation.get_last_a1m_rain( &r_min );
+	Serial.println("Rain last minute:");
+	Serial.println(r_min);
+	Serial.println("Rain last hour, Daily total:");
+	wStation.get_last_a1hr_24hr_rain( r_hr, r_day );
+	Serial.print(r_min);Serial.print(", ");Serial.print(r_day);
+}
+
 void loop() {
 	
 	if ( is_timer_done( &timer_5s_millis, timer_5s_preset ) ) {
 		Serial.println("\n---------------\n");
 		print_wind_data();
 		print_temperatures();
+		Serial.print("Light Level: ");Serial.println(get_light_level());
 	}
+
 	if ( is_timer_done( &timer_1s_millis, timer_1s_preset ) ) {
-		wStation.wind_calcs();
+		wStation.wind_calcs_per_second();
 	}
+
+	if ( is_timer_done( &timer_60s_millis, timer_60s_preset ) ) {
+		wStation.rain_calcs_per_minute();
+	}
+
 }

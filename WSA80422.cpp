@@ -191,13 +191,90 @@ void WSA80422::get_last_a5s_wind( int16_t *x, int16_t *y, uint32_t *spd) {
     *spd = w_spd_2m[previous_idx];
 }
 
+void WSA80422::get_last_a1m_rain( uint16_t *rain ) {
+	uint8_t previous_idx;
+    if ( rf_idx1m == 0 ) {
+    	previous_idx = 59;
+    }
+    else {
+    	previous_idx = rf_idx1m - 1;
+    }
+
+    *rain = acc_rain_1m[previous_idx];
+}
+
+bool WSA80422::init_light_sensor( uint8_t light_pin, uint8_t ref_pin ) {
+	LIGHT_PIN = light_pin;
+	REF_3V3_PIN = ref_pin;
+	pinMode(LIGHT_PIN, INPUT);
+	pinMode(REF_3V3_PIN, INPUT);
+}
+
+//Returns the voltage of the light sensor based on the 3.3V rail
+//This allows us to ignore what VCC might be (an Arduino plugged into USB has VCC of 4.5 to 5.2V)
+float WSA80422::get_light_level()
+{
+	float operatingVoltage = analogRead(REF_3V3_PIN);
+
+	float lightSensor = analogRead(LIGHT_PIN);
+
+	operatingVoltage = 3.3 / operatingVoltage; //The reference voltage is 3.3V
+
+	lightSensor = operatingVoltage * lightSensor;
+
+	return(lightSensor);
+}
+
+void WSA80422::get_last_a1hr_24hr_rain( uint16_t *rain_1hr, uint16_t *rain_day ) {
+	uint8_t previous_idx;
+    if ( rf_idx1hr == 0 ) {
+    	previous_idx = 23;
+    }
+    else {
+    	previous_idx = rf_idx1hr - 1;
+    }
+
+    *rain_1hr = acc_rain_1hr[previous_idx];
+
+    uint8_t i;
+    uint16_t acc_daily_rain = 0;
+    for ( i=0; i<24; i++) {
+    	acc_daily_rain += acc_rain_1hr[i];
+    }
+
+    *rain_day = acc_daily_rain;
+}
+
+
 void WSA80422::get_a2m_wind( int16_t *x, int16_t *y, uint32_t *spd) {
 	*x = 0;
     *y = 0;
     *spd = 0;
 }
 
-void WSA80422::wind_calcs ( void ) {
+void WSA80422::rain_calcs_per_minute ( void ) {
+	
+	noInterrupts();
+	acc_rain_1m[rf_idx1m] = getRainFall();
+	resetRainFallAcc();
+	interrupts();
+
+	rf_idx1m += 1;
+	if ( rf_idx1m == 60 ) {
+		uint8_t i;
+		uint16_t total_rf = 0;
+		for( i=0; i<60; i++ ){
+			total_rf += acc_rain_1m[i];
+			acc_rain_1m[i] = 0;	
+		}
+		rf_idx1hr += 1;
+		if ( 24 == rf_idx1hr ) {
+			rf_idx1hr = 0;
+		}
+	}
+}
+
+void WSA80422::wind_calcs_per_second ( void ) {
 	int16_t x, y;
 	WINDDIR wind_dir = getWindDir();
 	
